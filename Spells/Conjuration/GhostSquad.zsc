@@ -4,6 +4,7 @@ class GhostSquadSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeConjuration'; }
 	override string GetName() { return "Ghost Squad"; }
 	override int GetSpellType() { return SType_Targeted; }
+	override int GetSpellReputation() { return SRep_Holy; }
 	override int GetManaCost() { return 80; }
 	override string GetDescription()
 	{

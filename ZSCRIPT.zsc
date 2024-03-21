@@ -1,4 +1,4 @@
-version "4.5"
+version "4.11.3"
 
 #include "ZSCRIPT.SpellBrain.zsc"
 #include "ZSCRIPT.ArcanumSpell.zsc"
@@ -6,7 +6,7 @@ version "4.5"
 #include "ZSCRIPT.ArcanumTome.zsc"
 #include "ZSCRIPT.ManaBarrel.zsc"
 
-class ArcanumHandler : EventHandler
+class ArcanumHandler : StaticEventHandler
 {
 	override void CheckReplacement(ReplaceEvent e)
 	{
@@ -17,17 +17,69 @@ class ArcanumHandler : EventHandler
 
 		switch (e.Replacement.GetClassName())
 		{
-			case 'Lumberjack':
-				if (random[arcanrand]() <= 64)
+			case 'ChaingunReplaces':
+				if (!random(0, 12))
 				{
-					e.Replacement = 'HDArcanumTome';
+					e.Replacement = 'HDArcanumTomeRandom';
+					e.IsFinal = true;
+				}
+				break;
+			case 'PlasmaReplaces':
+				if (!random(0, 12))
+				{
+					e.Replacement = 'HDArcanumTomeRandom';
+					e.IsFinal = true;
+				}
+				break;
+			case 'ChainsawReplaces':
+				if (!random(0, 4))
+				{
+					e.Replacement = 'HDArcanumTomeRandom';
+					e.IsFinal = true;
 				}
 				break;
 			case 'HDBarrel':
 			{
-				if (random[arcanrand]() <= AceCore.GetScaledChance(4, 16, acl_spawnscale_min, acl_spawnscale_max))
+				if (!random(0, 12))
 				{
 					e.Replacement = 'ManaBarrel';
+					e.IsFinal = true;
+				}
+				break;
+			}
+			case 'PortableHealingItemBigger':
+			{
+				if (!random(0, 12))
+				{	
+					e.Replacement = "HDSoulSphere";
+					e.IsFinal = true;
+				}
+				break;
+			}
+			case 'PortableHealingItemBigger':
+			{
+				if (!random(0, 6))
+				{	
+					e.Replacement = "ManaBarrel";
+					e.IsFinal = true;
+				}
+				break;
+			}
+			case 'ShellPickup':
+			{
+				if (!random(0, 60))
+				{	
+					e.Replacement = "ManaBarrel";
+					e.IsFinal = true;
+				}
+				break;
+			}
+			case 'ClipMagPickup':
+			{
+				if (!random(0, 60))
+				{	
+					e.Replacement = "ManaBarrel";
+					e.IsFinal = true;
 				}
 				break;
 			}
@@ -47,6 +99,32 @@ class ArcanumHandler : EventHandler
 			ArcanumSpellBrain brain = ArcanumSpellBrain.Get(e.Player);
 			brain.InitSpells(e.Args[0]);
 		}
+	}
+}
+class HDArcanumTomeRandom : IdleDummy
+{
+	override void PostBeginPlay()
+	{
+		super.PostBeginPlay();
+		bool _; Actor wep;
+		[_, wep] = A_SpawnItemEx("HDArcanumTome", flags: SXF_NOCHECKPOSITION);
+		HDArcanumTome tome = HDArcanumTome(wep);
+		bool holy = false;
+		bool forbidden = false;
+		switch (random(0, 3))
+		{
+			default:
+				break;
+			case 1:
+				holy = true;
+			case 2:
+				forbidden = true;
+		}
+		int absorbMultiplier = random(0, 2) ? 0 : random(1, 9);
+		bool endless = !random(0, 4);
+		int blues = random(10, HDHM_BALL);
+		tome.Initialize(blues, absorbMultiplier, forbidden, holy, 0, endless);
+		destroy();
 	}
 }
 

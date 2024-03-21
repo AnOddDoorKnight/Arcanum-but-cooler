@@ -103,11 +103,20 @@ class ArcanumSpell abstract play
 		SType_SelfOrMass = 1,
 		SType_Targeted = 2
 	}
+	enum SRep
+	{
+		SRep_Holy = 0,
+		SRep_Standard = 1,
+		SRep_Forbidden = 2,
+	}
 
 	abstract class<ArcanumSpellTree> GetTree() const;
 	abstract int GetIndex() const;
 	abstract string GetName() const;
 	abstract int GetSpellType() const;
+	// If it is directed more to one side than the other, usually modifies the 
+	// - cost slightly by tomes.
+	abstract int GetSpellReputation() const; 
 	abstract int GetManaCost() const; // [Ace] Returns: blood, blues.
 	abstract ui string GetDescription() const;
 	abstract ui string GetTechnicalInfo() const;

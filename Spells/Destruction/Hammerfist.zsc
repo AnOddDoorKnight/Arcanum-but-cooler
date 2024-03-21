@@ -4,6 +4,7 @@ class HammerfistSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeDestruction'; }
 	override string GetName() { return "Hammerfist"; }
 	override int GetSpellType() { return SType_Targeted; }
+	override int GetSpellReputation() { return SRep_Standard; }
 	override int GetManaCost() { return 60; }
 	override string GetDescription() { return String.Format("A giant fist drops down from the sky and crushes a single target."); }
 	override string GetTechnicalInfo() { return "Targeted, Physical"; }

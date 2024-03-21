@@ -4,6 +4,7 @@ class FireballSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeDestruction'; }
 	override string GetName() { return "Fireball"; }
 	override int GetSpellType() { return SType_Targeted; }
+	override int GetSpellReputation() { return SRep_Standard; }
 	override int GetManaCost() { return 2; }
 	override string GetDescription() { return String.Format("Barrage target area with \c[Gold]%i\c- fireballs.", int(5 + 45 * GetExperienceFactor())); }
 	override string GetTechnicalInfo() { return "Targeted, Thermal, Dangerous"; }
@@ -42,7 +43,7 @@ class FireballSigil : ArcanumSigil
 			target = ViableTargets[random(0, ViableTargets.Size() - 1)];
 		}
 
-		Actor a = A_SpawnProjectile("MageImpBall2", Height * cos(randRoll), Height * sin(randRoll), random(-4, 4), CMF_AIMDIRECTION, pitch + random(-2, 2));
+		Actor a = A_SpawnProjectile("ArdentipedeBall2", Height * cos(randRoll), Height * sin(randRoll), random(-4, 4), CMF_AIMDIRECTION, pitch + random(-2, 2));
 		if (a)
 		{
 			a.target = master;

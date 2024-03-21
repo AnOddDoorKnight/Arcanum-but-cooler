@@ -4,6 +4,7 @@ class LifeForceSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeRestoration'; }
 	override string GetName() { return "Life Force"; }
 	override int GetSpellType() { return SType_SelfOrMass | SType_Targeted; }
+	override int GetSpellReputation() { return SRep_Holy; }
 	override int GetManaCost() { return 25; }
 	override string GetDescription()
 	{

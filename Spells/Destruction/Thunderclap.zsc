@@ -4,6 +4,7 @@ class ThunderclapSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeDestruction'; }
 	override string GetName() { return "Thunderclap"; }
 	override int GetSpellType() { return SType_Targeted; }
+	override int GetSpellReputation() { return SRep_Holy; }
 	override int GetManaCost() { return 6; }
 	override string GetDescription()
 	{

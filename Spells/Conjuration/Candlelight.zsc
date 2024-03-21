@@ -4,6 +4,7 @@ class CandlelightSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeConjuration'; }
 	override string GetName() { return "Candlelight"; }
 	override int GetSpellType() { return SType_SelfOrMass; }
+	override int GetSpellReputation() { return SRep_Standard; }
 	override int GetManaCost() { return 5; }
 	override string GetDescription() { return String.Format("Emit a bright light with a radius of \c[Gold]%.1f\c-m for \c[Gold]%.1f\c- minutes.", 5 + 5 * GetExperienceFactor(), 5 + 5 * GetExperienceFactor()); }
 	override string GetTechnicalInfo() { return "Self"; }

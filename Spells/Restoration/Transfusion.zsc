@@ -4,6 +4,7 @@ class TransfusionSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeRestoration'; }
 	override string GetName() { return "Transfusion"; }
 	override int GetSpellType() { return SType_Targeted; }
+	override int GetSpellReputation() { return SRep_Standard; }
 	override int GetManaCost() { return 10; }
 	override string GetDescription() { return String.Format("Transfers all of the tome's stored blues to the target."); }
 	override string GetTechnicalInfo() { return "Targeted, Touch"; }
@@ -20,11 +21,11 @@ class TransfusionSigil : ArcanumSigil
 		if (plr && you) // [Ace] <3
 		{
 			let tome = HDArcanumTome(you.FindInventory('HDArcanumTome'));
-			if (tome.WeaponStatus[tome.ATProp_Mana] > 0)
+			if (tome.mana > 0)
 			{
 				PlayCastSound(self, "Arcanum/Restoration/Transfusion");
-				plr.A_GiveInventory('HealingMagic', tome.WeaponStatus[tome.ATProp_Mana]);
-				tome.WeaponStatus[tome.ATProp_Mana] = 0;
+				plr.A_GiveInventory('HealingMagic', tome.mana);
+				tome.mana = 0;
 			}
 		}
 	}

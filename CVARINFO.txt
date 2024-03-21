@@ -1,3 +1,11 @@
 server bool arcanum_debug = false;
 user int arcanum_invert = 0;
 user bool arcanum_zoomhold = false;
+server bool arcanum_show_amount = true;
+server int arcanum_holy_generate_amount = 10;
+server int arcanum_holy_generate_speed_mult = 1;
+server float arcanum_absorption_multiplier = 1;
+server float arcanum_stored_max_multiplier = 1;
+server int arcanum_forbidden_multiplier = 2;
+server int arcanum_forbidden_damage_chance = 377;
+server bool arcanum_use_specialized_tags = true;

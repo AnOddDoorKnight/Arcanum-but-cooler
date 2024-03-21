@@ -4,6 +4,7 @@ class GuardianOrbSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeConjuration'; }
 	override string GetName() { return "Guardian Orb"; }
 	override int GetSpellType() { return SType_SelfOrMass | SType_Targeted; }
+	override int GetSpellReputation() { return SRep_Holy; }
 	override int GetManaCost() { return 60; }
 	override string GetDescription()
 	{

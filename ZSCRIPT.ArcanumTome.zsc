@@ -10,8 +10,42 @@ class HDArcanumTome : HDWeapon
 		ATProp_Flags,
 		ATProp_SelectedTree,
 		ATProp_SelectedSpell,
-		ATProp_Mana
 	}
+	
+	int mana;
+	bool endless;
+	bool holy;
+	bool forbidden;
+	int maximumMana;
+	int absorberMultiplier;
+	
+	
+	clearscope int GetModifiedRepCost(ArcanumSpell spell)
+	{
+		int manaCost = spell.GetManaCost();
+		if (!arcanum_use_specialized_tags)
+			return manaCost;
+			
+		int spellRep = spell.GetSpellReputation();
+		int currentRep = holy ? 0 : forbidden ? 2 : 1;
+		
+		if (currentRep == 1) // Neutral, use normally
+			return manaCost;
+		int difference = currentRep - spellRep;
+		if (difference == 0)
+			return int(double(manaCost) * 0.8);
+		if (abs(difference) == 2)
+			return int(double(manaCost) * 1.2);
+		return manaCost;
+	}
+	clearscope int GetRealMaxAmount()
+	{
+		if (Endless)
+			return int.MAX;
+		return maximumMana;
+	}
+	
+	
 
 	override void DoEffect()
 	{
@@ -33,7 +67,7 @@ class HDArcanumTome : HDWeapon
 						int amt = req.Arg.ToInt();
 						if (amt != 0)
 						{
-							WeaponStatus[ATProp_Mana] = clamp(WeaponStatus[ATProp_Mana] + amt, 0, HDHM_BALL);
+							mana = clamp(mana + amt, 0, GetRealMaxAmount());
 						}
 						req.Remove(); i--; // [Ace] req.Remove() will shift the index. We need to make sure the next element is not skipped.
 						break;
@@ -41,26 +75,71 @@ class HDArcanumTome : HDWeapon
 				}
 			}
 		}
+		
 
 		int curBlues = owner.CountInv('HealingMagic');
 		bool hasCube = AceCore.CheckForItem(owner, 'HDSoulCube');
-		if (curBlues > 0 && WeaponStatus[ATProp_Mana] < HDHM_BALL)
+		double baseSpeed = HDHM_BALL / (35 * 60 * (hasCube ? 15.0 : 20.0));
+		
+		
+		bool fullNormal = mana >= maximumMana;
+		if (curBlues > 0 && GetRealMaxAmount() > mana)
 		{
-			double baseSpeed = HDHM_BALL / (35 * 60 * (hasCube ? 15.0 : 20.0));
 			double speedFac = max(0.5, curBlues / double(HDHM_BALL));
+			double one = 1;
+			speedFac *= absorberMultiplier + 1;
+			speedFac *= arcanum_absorption_multiplier;
+			
+			if (endless && fullNormal)
+			{
+				speedFac *= 0.5;
+				one = 2;
+			}
 
 			if (owner.FindInventory('PowerInvulnerable'))
 			{
-				speedFac *= 5;
+				speedFac *= 5.0;
 			}
 
 			AccumulatedBlues += baseSpeed * speedFac;
+			if (AccumulatedBlues >= one)
+			{
+				int toCharge = int(AccumulatedBlues);
+				toCharge /= int(one); // Endless makes it twice as inefficient
+				owner.A_TakeInventory('HealingMagic', toCharge);
+				if (forbidden)
+				{
+					toCharge *= arcanum_forbidden_multiplier;
+					if (!random(0, arcanum_forbidden_damage_chance / (absorberMultiplier + 1)))
+					{
+						let selfPlayer = hdplayerpawn(owner);
+						selfPlayer.aggravateddamage += random(-1, 3);
+						selfPlayer.A_TakeInventory("HealingMagic", 17);
+						A_SpawnItemEx("BFGNecroShard",
+							frandom(-4,4),frandom(-4,4),frandom(6,24),
+							frandom(1,6),0,frandom(1,3),
+							frandom(0,360),SXF_NOCHECKPOSITION|SXF_TRANSFERPOINTERS|SXF_SETMASTER
+						);
+						if (!random(0, 3))
+							selfPlayer.cheatgivestatusailments("fire", random(1, 14));
+						if (!random(0, 3))
+							owner.A_Log("You feel power being pulled from you.", true);
+					}
+				}
+				mana = min(mana + toCharge, GetRealMaxAmount());
+				AccumulatedBlues %= 1.0; // [Ace] Don't lose fractions.
+			}
+		}
+		// Divine light fills the book with blues.
+		else if (Holy && curBlues == 0 && (mana < arcanum_holy_generate_amount && GetRealMaxAmount() > mana))
+		{
+			double rootSpeed = baseSpeed * 1.0;
+			AccumulatedBlues += rootSpeed * arcanum_holy_generate_speed_mult;
 			if (AccumulatedBlues >= 1)
 			{
 				int toCharge = int(AccumulatedBlues);
-				owner.A_TakeInventory('HealingMagic', toCharge);
-				WeaponStatus[ATProp_Mana] = min(WeaponStatus[ATProp_Mana] + toCharge, HDHM_BALL);
-				AccumulatedBlues %= 1.0; // [Ace] Don't lose fractions.
+				mana = min(mana + toCharge, GetRealMaxAmount());
+				AccumulatedBlues %= 1.0;
 			}
 		}
 		else
@@ -73,10 +152,10 @@ class HDArcanumTome : HDWeapon
 	{
 		Super.PreTravelled();
 
-		int amt = min(HDHM_BALL - WeaponStatus[ATProp_Mana], owner.CountInv('HealingMagic'));
+		int amt = min(GetRealMaxAmount() - mana, owner.CountInv('HealingMagic'));
 		if (amt > 0)
 		{
-			WeaponStatus[ATProp_Mana] += amt;
+			mana += amt;
 			owner.A_TakeInventory('HealingMagic', amt);
 		}
 	}
@@ -84,13 +163,13 @@ class HDArcanumTome : HDWeapon
 	override bool AddSpareWeapon(actor newowner) { return AddSpareWeaponRegular(newowner); }
 	override HDWeapon GetSpareWeapon(actor newowner , bool reverse, bool doselect) { return GetSpareWeaponRegular(newowner, reverse, doselect); }
 	override double GunMass() { return 4; }
-	override double WeaponBulk() { return 20; }
 	override string, double GetPickupSprite() { return "ARCTZ0", 1.0; }
 	override string GetHelpText()
 	{
 		string HText = WEPHELP_FIRE.."  Place rune\n"
-		..WEPHELP_ALTFIRE.."  Create spell circle\n"
-		..WEPHELP_ZOOM.."  Spell manager";
+		..WEPHELP_ALTFIRE.."  Create spell circle (absorption: "..(absorberMultiplier)..", "..(maximumMana)..")\n"
+		..WEPHELP_ZOOM.."  Spell manager\n";
+			
 
 		if (WeaponStatus[ATProp_Flags] & ATF_InSpellMenu)
 		{
@@ -111,22 +190,47 @@ class HDArcanumTome : HDWeapon
 		
 		ArcanumSpell selSpell = GetSelectedSpell();
 		selSpell.DrawHUDStuff(sb, hpl, self);
+		let book = HDArcanumTome(hdw);
 
 		// [Ace] Ponder this mana orb.
 		if (sb.hudlevel == 1)
 		{
-			double fillFac = hdw.WeaponStatus[ATProp_Mana] / double(HDHM_BALL);
+			double fillFac = double(book.mana) / double(book.maximumMana);
+			double visualFill = clamp(fillFac, 0.0, 1.0);
 
 			static const int Lengths[] = { 3, 7, 9, 9, 11, 11, 11, 9, 9, 7, 3 };
-			for (int i = 0; i < int(11 * fillFac); ++i)
+			for (int i = 0; i < int(11 * visualFill); ++i)
 			{
-				sb.Fill(0xFF0022FF, -55 - Lengths[i], -5 - i * 2, Lengths[i] * 2, 2, sb.DI_SCREEN_CENTER_BOTTOM);
+				sb.Fill(0xFF0022FF, -53 - Lengths[i], -5 - i * 2, Lengths[i] * 2, 2, sb.DI_SCREEN_CENTER_BOTTOM);
 			}
 
-			if (hpl.CountInv('HealingMagic') > 0)
+			int curBlues = hpl.CountInv('HealingMagic');
+			if (curBlues > 0)
 			{
-				sb.Fill(0xFF0022FF, -70, -7, 6, 2, sb.DI_SCREEN_CENTER_BOTTOM);
-				sb.Fill(0xFF0022FF, -68, -9, 2, 6, sb.DI_SCREEN_CENTER_BOTTOM);
+				// Oh no frag
+				if (forbidden)
+				{
+					sb.Fill(0xFFF08080, -70, -7, 6, 2, sb.DI_SCREEN_CENTER_BOTTOM);
+					sb.Fill(0xFFF08080, -68, -9, 2, 6, sb.DI_SCREEN_CENTER_BOTTOM);
+				}
+				// Normal
+				else
+				{
+					sb.Fill(0xFF0022FF, -70, -7, 6, 2, sb.DI_SCREEN_CENTER_BOTTOM);
+					sb.Fill(0xFF0022FF, -68, -9, 2, 6, sb.DI_SCREEN_CENTER_BOTTOM);
+				}
+			}
+			// Passively giving blues
+			else if (book.holy && mana < arcanum_holy_generate_amount)
+			{
+				sb.Fill(0xFFFFFFE0, -70, -7, 6, 2, sb.DI_SCREEN_CENTER_BOTTOM);
+				sb.Fill(0xFFFFFFE0, -68, -9, 2, 6, sb.DI_SCREEN_CENTER_BOTTOM);
+			}
+			// Blue++, reserved only for endless books
+			if (fillFac > 1.0)
+			{
+				sb.Fill(0xFF0022FF, -40, -24, 6, 2, sb.DI_SCREEN_CENTER_BOTTOM);
+				sb.Fill(0xFF0022FF, -38, -26, 2, 6, sb.DI_SCREEN_CENTER_BOTTOM);
 			}
 		}
 
@@ -180,10 +284,16 @@ class HDArcanumTome : HDWeapon
 		sb.DrawString(DescFont, SelTree.GetDescription(), (-140, baseOffset + 20), sb.DI_SCREEN_CENTER | sb.DI_TEXT_ALIGN_LEFT, Font.CR_WHITE, 1.0, 280, 1);
 
 		sb.DrawString(TitleFont, "Spells", (-140, baseOffset + 90), sb.DI_SCREEN_CENTER | sb.DI_TEXT_ALIGN_LEFT);
+		double mult = AceCore.CheckForItem(hpl, "HDSoulCube") ? 0.80 : 1.0;
 		for (int i = 0; i < SelTree.Spells.Size(); ++i)
 		{
 			ArcanumSpell CurSpell = SelTree.Spells[i];
-			sb.DrawString(DescFont, CurSpell.GetName(), (-140, baseOffset + 110 + 10 * i), sb.DI_SCREEN_CENTER | sb.DI_TEXT_ALIGN_LEFT, CurSpell == SelSpell ? Font.CR_GOLD : Font.CR_WHITE);
+			int cost = GetModifiedRepCost(CurSpell);
+			bool canCast = (cost * mult) < book.maximumMana;
+			sb.DrawString(DescFont, CurSpell.GetName(), (-140, baseOffset + 110 + 10 * i), sb.DI_SCREEN_CENTER | sb.DI_TEXT_ALIGN_LEFT, 
+				CurSpell == SelSpell ? Font.CR_GOLD : 
+				canCast ? Font.CR_WHITE : 
+				book.Endless ? Font.CR_PURPLE : Font.CR_BLACK);
 		}
 		
 		int yOff = baseOffset + 90;
@@ -208,8 +318,7 @@ class HDArcanumTome : HDWeapon
 		
 		sb.DrawString(DescFont, selSpell.GetTechnicalInfo(), (-40, yOff + 20), sb.DI_SCREEN_CENTER | sb.DI_TEXT_ALIGN_LEFT, Font.CR_OLIVE);
 
-		double mult = AceCore.CheckForItem(hpl, "HDSoulCube") ? 0.80 : 1.0;
-		int cost = int(selSpell.GetManaCost() * mult);
+		int cost = int(GetModifiedRepCost(selSpell) * mult);
 
 		string str = String.Format("\c[ArcanumReqBlue]%i\c-", cost);
 		sb.DrawString(DescFont, "\c[DarkGray]Cost: "..str, (-40, yOff + 30), sb.DI_SCREEN_CENTER | sb.DI_TEXT_ALIGN_LEFT);
@@ -230,10 +339,31 @@ class HDArcanumTome : HDWeapon
 	override void LoadoutConfigure(string input)
 	{
 		int StartBlues = GetLoadoutVar(input, "blues", 4);
-		if (StartBlues > 0)
-		{
-			BluesToGive = StartBlues;
-		}
+		BluesToGive = clamp(StartBlues, 0, 9999);
+		
+		absorberMultiplier = clamp(GetLoadoutVar(input, "absorber", 1), 0, 9);
+		maximumMana = (HDHM_BALL - (HDHM_BOTTLE * absorberMultiplier * 1.5)) * arcanum_stored_max_multiplier;
+		
+		forbidden = GetLoadoutVar(input, "forbidden", 1) > 0;
+		holy = GetLoadoutVar(input, "holy", 1) > 0 && !forbidden;
+		int percentage = clamp(GetLoadoutVar(input, "filled", 3), 0, 100);
+		double filledAmount = double(percentage) / 100.0;
+		mana = int(GetRealMaxAmount() * filledAmount);
+		endless = GetLoadoutVar(input, "endless", 1) > 0;
+	}
+	void Initialize(int startingBlues, int _absorbMultiplier, bool _forbidden, bool _holy, int percentage, bool _endless)
+	{
+		BluesToGive = clamp(startingBlues, 0, 999999);
+		
+		absorberMultiplier = clamp(_absorbMultiplier, 0, 9);
+		maximumMana = (HDHM_BALL - (HDHM_BOTTLE * _absorbMultiplier * 1.5)) * arcanum_stored_max_multiplier;
+		
+		forbidden = _forbidden;
+		holy = _holy && !forbidden;
+		int percentage = clamp(percentage, 0, 100);
+		double filledAmount = double(percentage) / 100.0;
+		mana = int(GetRealMaxAmount() * filledAmount);
+		endless = _endless;
 	}
 
 	override void DetachFromOwner()
@@ -317,7 +447,7 @@ class HDArcanumTome : HDWeapon
 		let tome = HDArcanumTome(other.FindInventory("HDArcanumTome"));
 		if (tome && tome.SpellStorage)
 		{
-			tome.WeaponStatus[ATProp_Mana] = min(tome.WeaponStatus[ATProp_Mana] + WeaponStatus[ATProp_Mana], HDHM_BALL);
+			tome.mana = min(tome.mana + mana, GetRealMaxAmount());
 			
 			// [Ace] Only give experience to spells that fit the bill, i.e. those that actually support experience.
 			Array<ArcanumSpell> valid;
@@ -335,6 +465,7 @@ class HDArcanumTome : HDWeapon
 
 			if (valid.Size() > 0)
 			{
+				other.A_GiveInventory('HealingMagic', BluesToGive);
 				ArcanumSpell randSpell = valid[random(0, valid.Size() - 1)];
 				if (randSpell.GainExperience(randSpell.GetMaxExperience() / (multiplayer ? 4.0 : 5.0)))
 				{
@@ -377,8 +508,47 @@ class HDArcanumTome : HDWeapon
 		Inventory.PickupSound "weapons/pocket";
 		HDWeapon.Refid "arc";
 		Inventory.MaxAmount 1;
-		Inventory.PickupMessage "You picked up the Arcanum tome of knowledge. Unlimited power awaits those with the energy within.";
+		Inventory.PickupMessage "You picked up the Arcanum tome of knowledge.";
+		hdweapon.loadoutcodes "
+			\cublues - 0/999999, gives you blues based on amount.
+			\cufilled - 0/100, how much it was filled already.
+			\cuabsorber - 0/9, absorbs your blues faster in turn to hold less overall, split in potion sips.
+			\cuforbidden - 0/1, improves blue absorption efficiency at the cost of something else.
+			\cuendless - 0/1, allows it to add beyond the normal capacity, less efficient when it does.
+			\cuholy - 0/1, gives a sliver of mana when low.";
 	}
+	override int getsbarnum(int flags)
+	{
+		return arcanum_show_amount ? mana : super.getsbarnum(flags);
+	}
+	
+	
+	override double WeaponBulk()
+	{
+		double baseBulk = holy ? 60 : forbidden ? 35 : 25;
+		baseBulk -= absorberMultiplier;
+		if (endless)
+		{
+			double additionalMana = double(mana) - double(maximumMana);
+			baseBulk += 20 + max(40 * (additionalMana / double(maximumMana)), 0);
+		}
+		return clamp(baseBulk, 0, 600);
+	}
+	override string pickupmessage(){
+		string msg = super.pickupmessage();
+		if (forbidden)
+			msg.replace(".", ", just holding it makes you shiver.");
+		else if (endless)
+			msg.replace(".", ", feels heavy!");
+		else if (holy)
+			msg.replace(".", "! Holding it gives you a bit of excitement.");
+		else if (absorberMultiplier > 2)
+			msg = msg.." In combination of technology allows the use in the field.";
+		else
+			msg = msg.." Unlimited power awaits those with the energy within.";
+		return msg;
+	}
+	
 
 	States
 	{
@@ -575,16 +745,17 @@ class HDArcanumTome : HDWeapon
 				ArcanumSpell selSpell = invoker.GetSelectedSpell();
 
 				let plr = HDPlayerPawn(self);
-
-				double mult = AceCore.CheckForItem(plr, "HDSoulCube") ? 0.80 : 1.0;
-				int cost = int(selSpell.GetManaCost() * mult);
-				if (invoker.WeaponStatus[ATProp_Mana] >= cost)
+				
+				int cost = invoker.GetModifiedRepCost(selSpell);
+				double multCube = AceCore.CheckForItem(plr, "HDSoulCube") ? 0.80 : 1.0;
+				cost = int(cost * multCube);
+				if (invoker.mana >= cost)
 				{
 					FLineTraceData Data;
 					LineTrace(angle, radius + 10, pitch, TRF_NOSKY, height - 6, 0, 0, Data);
 					if (Data.HitType == Data.TRACE_HitNone || Data.HitType == Data.TRACE_HitFloor)
 					{
-						invoker.WeaponStatus[ATProp_Mana] -= cost;
+						invoker.mana -= cost;
 
 						ArcanumSigil s = ArcanumSigil(Spawn(selSpell.GetSigil(), Data.HitLocation));
 						s.angle = angle;
@@ -610,7 +781,10 @@ class HDArcanumTome : HDWeapon
 				}
 				else
 				{
-					A_WeaponMessage("You don't feel powerful enough to cast "..selSpell.GetName()..".");
+					if (invoker.GetRealMaxAmount() < cost)
+						A_WeaponMessage("You will never reach the ability to cast "..selSpell.GetName()..".");
+					else
+						A_WeaponMessage("You don't feel powerful enough to cast "..selSpell.GetName()..".");
 				}
 			}
 			ARCT A 2;

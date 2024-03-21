@@ -4,6 +4,7 @@ class ClaymoreSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeDestruction'; }
 	override string GetName() { return "Claymore"; }
 	override int GetSpellType() { return SType_Targeted; }
+	override int GetSpellReputation() { return SRep_Standard; }
 	override int GetManaCost() { return 5; }
 	override string GetDescription() { return "Activate the rune to create a trap that will activate when an enemy is in front of it."; }
 	override string GetTechnicalInfo() { return "Touch, Physical"; }

@@ -4,6 +4,7 @@ class ImmolationSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeDestruction'; }
 	override string GetName() { return "Immolation"; }
 	override int GetSpellType() { return SType_SelfOrMass; }
+	override int GetSpellReputation() { return SRep_Forbidden; }
 	override int GetManaCost() { return 120; }
 	override string GetDescription() { return String.Format("Sets all enemies within \c[Gold]%.1f\c-m on fire.", 10 + 20 * GetExperienceFactor()); }
 	override string GetTechnicalInfo() { return "Mass, Thermal"; }

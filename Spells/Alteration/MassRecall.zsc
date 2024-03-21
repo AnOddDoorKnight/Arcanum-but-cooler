@@ -4,6 +4,7 @@ class MassRecallSpell : ArcanumSpell
 	override class<ArcanumSpellTree> GetTree() { return 'ArcanumTreeAlteration'; }
 	override string GetName() { return "Mass Recall"; }
 	override int GetSpellType() { return SType_SelfOrMass; }
+	override int GetSpellReputation() { return SRep_Standard; }
 	override int GetManaCost() { return 50; }
 	override string GetDescription() { return "Teleports all players, dead or alive, to the circle."; }
 	override string GetTechnicalInfo() { return "Mass"; }
